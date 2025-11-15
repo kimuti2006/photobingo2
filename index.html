@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>写真ビンゴ 4x4</title>
+<style>
+    body {
+        font-family: sans-serif;
+        padding: 20px;
+        text-align: center;
+    }
+    #bingo {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    .cell {
+        border: 1px solid #ccc;
+        padding: 8px;
+        border-radius: 6px;
+        background: #fafafa;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 14px;
+    }
+    .cell.completed {
+        background: #d1ffd1;
+        border: 2px solid #4caf50;
+    }
+    .keyword {
+        width: 90%;
+        margin-bottom: 6px;
+        text-align: center;
+    }
+    .preview {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-top: 4px;
+        background: #eee;
+    }
+    .btn-small {
+        margin-top: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+</style>
+</head>
+<body>
+
+<h1>📸 写真ビンゴ（4×4）</h1>
+
+<div id="bingo"></div>
+
+<br>
+
+<button onclick="exportData()">エクスポート（JSON）</button>
+<input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+<button onclick="document.getElementById('importFile').click()">インポート</button>
+
+<script>
+const SIZE = 4;
+let bingoData = [];
+
+// 指定キーワード（15個）、残り1つは空欄
+const defaultKeywords = [
+    "きれいな景色",
+    "おいしそうなもの",
+    "誰かの笑顔",
+    "元気なおじいちゃん（おばあちゃん）",
+    "外来植物（生物）",
+    "昔の暮らしを感じるもの",
+    "〇〇に見えた雲",
+    "里山の香り",
+    "ほっこりするもの",
+    "くすっと笑えるもの",
+    "新しい建物、もの",
+    "古い建物、もの",
+    "歴史を感じるもの",
+    "なんとなーく色",
+    "全体（広い）の景色",
+    "" // 残りの1マスは自由入力
+];
+
+/* -------------------------------
+   初期データ生成 or ロード
+-------------------------------- */
+function loadData() {
+    const saved = localStorage.getItem("photoBingo4x4");
+    if (saved) {
+        bingoData = JSON.parse(saved);
+    } else {
+        bingoData = defaultKeywords.map(k => ({
+            keyword: k,
+            image: "",
+            completed: false
+        }));
+    }
+}
+
+/* -------------------------------
+   データ保存
+-------------------------------- */
+function saveData() {
+    localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
+}
+
+/* -------------------------------
+   カード描画
+-------------------------------- */
+function render() {
+    const board = document.getElementById("bingo");
+    board.innerHTML = "";
+
+    bingoData.forEach((cell, index) => {
+        const div = document.createElement("div");
+        div.className = "cell" + (cell.completed ? " completed" : "");
+
+        // キーワード入力
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "キーワード";
+        input.value = cell.keyword;
+        input.className = "keyword";
+        input.oninput = (e) => {
+            bingoData[index].keyword = e.target.value;
+            saveData();
+        };
+        div.appendChild(input);
+
+        // 画像プレビュー
+        const img = document.createElement("img");
+        img.className = "preview";
+        img.src = cell.image || "";
+        div.appendChild(img);
+
+        // 写真ボタン
+        const photoInput = document.createElement("input");
+        photoInput.type = "file";
+        photoInput.accept = "image/*";
+        photoInput.capture = "environment";
+        photoInput.style.display = "none";
+        photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                bingoData[index].image = url;
+                saveData();
+                render();
+            }
+        };
+
+        const photoBtn = document.createElement("button");
+        photoBtn.textContent = "写真を撮る/選ぶ";
+        photoBtn.className = "btn-small";
+        photoBtn.onclick = () => photoInput.click();
+        div.appendChild(photoBtn);
+        div.appendChild(photoInput);
+
+        // 確認OK
+        const okBtn = document.createElement("button");
+        okBtn.textContent = "確認してOK";
+        okBtn.className = "btn-small";
+        okBtn.onclick = () => {
+            bingoData[index].completed = true;
+            saveData();
+            render();
+        };
+        div.appendChild(okBtn);
+
+        board.appendChild(div);
+    });
+}
+
+/* -------------------------------
+   エクスポート
+-------------------------------- */
+function exportData() {
+    const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bingo4x4_export.json";
+    a.click();
+}
+
+/* -------------------------------
+   インポート
+-------------------------------- */
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+        bingoData = JSON.parse(reader.result);
+        saveData();
+        render();
+        alert("インポートが完了しました！");
+    };
+    reader.readAsText(file);
+}
+
+/* -------------------------------
+   初期化
+-------------------------------- */
+loadData();
+render();
+</script>
+
+</body>
+</html>
