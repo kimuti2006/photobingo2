@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（完全版）</title>
+<title>写真ビンゴ 4x4（GitHub Pages 最適化版）</title>
 <style>
     body {
         font-family: sans-serif;
@@ -40,8 +40,8 @@
         height: 100px;
         object-fit: cover;
         border-radius: 4px;
-        margin-top: 4px;
         background: #eee;
+        margin-top: 4px;
     }
     .btn-small {
         margin-top: 4px;
@@ -85,9 +85,33 @@ const defaultKeywords = [
     ""
 ];
 
-// --------------------------
-// データ読み込み
-// --------------------------
+// ---------------------------
+// 画像圧縮 → Base64 化
+// ---------------------------
+function compressImage(file, maxWidth = 600, callback) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const scale = maxWidth / img.width;
+            const canvas = document.createElement("canvas");
+            canvas.width = maxWidth;
+            canvas.height = img.height * scale;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            const base64 = canvas.toDataURL("image/jpeg", 0.8); // 圧縮率 80%
+            callback(base64);
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ---------------------------
+// localStorage 読み込み
+// ---------------------------
 function loadData() {
     const saved = localStorage.getItem("photoBingo4x4");
     if (saved) {
@@ -101,16 +125,20 @@ function loadData() {
     }
 }
 
-// --------------------------
-// データ保存
-// --------------------------
+// ---------------------------
+// localStorage 保存
+// ---------------------------
 function saveData() {
-    localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
+    try {
+        localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
+    } catch (e) {
+        alert("保存容量がいっぱいです。写真を小さくするか、削除してください。");
+    }
 }
 
-// --------------------------
-// カード描画
-// --------------------------
+// ---------------------------
+// 描画
+// ---------------------------
 function render() {
     const board = document.getElementById("bingo");
     board.innerHTML = "";
@@ -130,40 +158,38 @@ function render() {
         };
         div.appendChild(input);
 
-        // 画像プレビュー
+        // プレビュー
         const img = document.createElement("img");
         img.className = "preview";
         img.src = cell.image || "";
         div.appendChild(img);
 
-        // 画像アップロード
-        const photoInput = document.createElement("input");
-        photoInput.type = "file";
-        photoInput.accept = "image/*";
-        photoInput.capture = "environment";
-        photoInput.style.display = "none";
+        // 写真アップロード
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*";
+        fileInput.capture = "environment";
+        fileInput.style.display = "none";
 
-        photoInput.onchange = (e) => {
-            const file = e.target.files[0];
+        fileInput.onchange = (event) => {
+            const file = event.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                bingoData[index].image = reader.result; // Base64
+            compressImage(file, 600, (base64) => {
+                bingoData[index].image = base64;
                 saveData();
                 render();
-            };
-            reader.readAsDataURL(file);
+            });
         };
 
         const btn = document.createElement("button");
         btn.textContent = "写真を撮る/選ぶ";
         btn.className = "btn-small";
-        btn.onclick = () => photoInput.click();
+        btn.onclick = () => fileInput.click();
         div.appendChild(btn);
-        div.appendChild(photoInput);
+        div.appendChild(fileInput);
 
-        // 完了ボタン
+        // OK
         const okBtn = document.createElement("button");
         okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
@@ -171,45 +197,3 @@ function render() {
             bingoData[index].completed = true;
             saveData();
             render();
-        };
-        div.appendChild(okBtn);
-
-        board.appendChild(div);
-    });
-}
-
-// --------------------------
-// エクスポート
-// --------------------------
-function exportData() {
-    const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "bingo4x4_export.json";
-    a.click();
-}
-
-// --------------------------
-// インポート
-// --------------------------
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-        bingoData = JSON.parse(reader.result);
-        saveData();
-        render();
-        alert("インポート完了！");
-    };
-    reader.readAsText(file);
-}
-
-// 初期化
-loadData();
-render();
-</script>
-
-</body>
-</html>
