@@ -60,11 +60,19 @@ h1 {
 .keyword {
     width: 100%;
     margin-bottom: 4px;
-    text-align: center;
     font-size: 12px;
-    white-space: normal;      /* ← 自動で折り返し */
-    word-break: break-word;   /* ← 長い単語も折り返す */
+    text-align: center;
+
+    resize: none;       /* 大きさ変更禁止 */
+    overflow: hidden;   /* スクロールバー非表示 */
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.2;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
 }
+
 
 /* ---- プレビュー画像 ---- */
 .preview {
@@ -199,15 +207,16 @@ function render() {
         div.className = "cell" + (cell.completed ? " completed" : "");
 
         // キーワード
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "keyword";
-        input.value = cell.keyword;
-        input.oninput = (e) => {
-            bingoData[index].keyword = e.target.value;
-            saveData();
-        };
-        div.appendChild(input);
+       const input = document.createElement("textarea");
+input.className = "keyword";
+input.value = cell.keyword;
+input.rows = 2;  // ← スマホでも読みやすい
+input.oninput = (e) => {
+    bingoData[index].keyword = e.target.value;
+    saveData();
+};
+div.appendChild(input);
+
 
         // 画像プレビュー
         const img = document.createElement("img");
@@ -292,5 +301,6 @@ render();
 
 </body>
 </html>
+
 
 
