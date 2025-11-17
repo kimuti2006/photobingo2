@@ -66,7 +66,7 @@
 const SIZE = 4;
 let bingoData = [];
 
-// 指定キーワード（15個）、残り1つは空欄
+// 指定キーワード（15個）、残り1つは自由枠
 const defaultKeywords = [
     "きれいな景色",
     "おいしそうなもの",
@@ -83,7 +83,7 @@ const defaultKeywords = [
     "歴史を感じるもの",
     "なんとなーく色",
     "全体（広い）の景色",
-    "" // 残りの1マスは自由入力
+    ""
 ];
 
 /* -------------------------------
@@ -107,6 +107,19 @@ function loadData() {
 -------------------------------- */
 function saveData() {
     localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
+}
+
+/* -------------------------------
+   Base64 変換読み込み
+-------------------------------- */
+function handleImageUpload(file, index) {
+    const reader = new FileReader();
+    reader.onload = () => {
+        bingoData[index].image = reader.result; // base64 データ
+        saveData();
+        render();
+    };
+    reader.readAsDataURL(file);
 }
 
 /* -------------------------------
@@ -138,7 +151,7 @@ function render() {
         img.src = cell.image || "";
         div.appendChild(img);
 
-        // 写真ボタン
+        // 写真ボタン（Base64 変換版）
         const photoInput = document.createElement("input");
         photoInput.type = "file";
         photoInput.accept = "image/*";
@@ -147,10 +160,7 @@ function render() {
         photoInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
-                const url = URL.createObjectURL(file);
-                bingoData[index].image = url;
-                saveData();
-                render();
+                handleImageUpload(file, index);
             }
         };
 
@@ -161,7 +171,7 @@ function render() {
         div.appendChild(photoBtn);
         div.appendChild(photoInput);
 
-        // 確認OK
+        // OK ボタン
         const okBtn = document.createElement("button");
         okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
