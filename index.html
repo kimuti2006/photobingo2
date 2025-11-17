@@ -2,51 +2,78 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（GitHub Pages 安定版）</title>
+<title>写真ビンゴ 4x4（スマホ全画面 最適化版）</title>
+
+<!-- スマホ全画面表示に必須 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
 <style>
-    body {
+    /* スマホ全画面のために余白を完全にカット */
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100dvh; /* iPhone Safari 対応の新しい単位 */
+        background: #ffffff;
         font-family: sans-serif;
-        padding: 20px;
-        text-align: center;
+        overflow-x: hidden;
     }
+
+    h1 {
+        margin: 8px 0;
+        font-size: 20px;
+    }
+
     #bingo {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
+        gap: 6px;
+        width: 100%;
         max-width: 500px;
         margin: 0 auto;
+        padding: 0 8px;
     }
+
     .cell {
         border: 1px solid #ccc;
-        padding: 8px;
+        padding: 6px;
         border-radius: 6px;
         background: #fafafa;
         display: flex;
         flex-direction: column;
         align-items: center;
-        font-size: 14px;
+        font-size: 12px;
     }
+
     .cell.completed {
         background: #d1ffd1;
         border: 2px solid #4caf50;
     }
+
     .keyword {
         width: 90%;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         text-align: center;
+        font-size: 12px;
     }
+
     .preview {
-        width: 100px;
-        height: 100px;
+        width: 90px;
+        height: 90px;
         object-fit: cover;
         border-radius: 4px;
         background: #eee;
-        margin-top: 4px;
     }
+
     .btn-small {
         margin-top: 4px;
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 4px 6px;
+        font-size: 11px;
+    }
+
+    /* ボタンエリア */
+    .controls {
+        padding: 8px;
     }
 </style>
 </head>
@@ -57,11 +84,11 @@
 
 <div id="bingo"></div>
 
-<br>
-
-<button onclick="exportData()">エクスポート（JSON）</button>
-<input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
-<button onclick="document.getElementById('importFile').click()">インポート</button>
+<div class="controls">
+    <button onclick="exportData()">エクスポート（JSON）</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+    <button onclick="document.getElementById('importFile').click()">インポート</button>
+</div>
 
 <script>
 /* =========================================
@@ -110,12 +137,12 @@ function saveData() {
     try {
         localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
     } catch {
-        alert("⚠ 写真が多すぎて保存できません。いくつか削除してください。");
+        alert("⚠ 写真の保存容量がいっぱいです。いくつか削除してください。");
     }
 }
 
 /* =========================================
-   写真を圧縮して Base64 に変換
+   写真圧縮 → Base64
 ========================================= */
 function compressAndConvert(file, callback) {
     const reader = new FileReader();
@@ -139,14 +166,14 @@ function compressAndConvert(file, callback) {
         };
 
         img.onerror = () => {
-            alert("⚠ 画像の読み込みに失敗しました。別の写真を選んでください。");
+            alert("⚠ 画像の読み込みに失敗しました。別の写真でお試しください。");
         };
 
         img.src = e.target.result;
     };
 
     reader.onerror = () => {
-        alert("⚠ 画像変換に失敗しました。");
+        alert("⚠ 画像の読み込みに失敗しました。");
     };
 
     reader.readAsDataURL(file);
@@ -163,7 +190,7 @@ function render() {
         const div = document.createElement("div");
         div.className = "cell" + (cell.completed ? " completed" : "");
 
-        // ---- キーワード入力 ----
+        // キーワード
         const input = document.createElement("input");
         input.type = "text";
         input.className = "keyword";
@@ -174,21 +201,21 @@ function render() {
         };
         div.appendChild(input);
 
-        // ---- 画像プレビュー ----
+        // 画像プレビュー
         const img = document.createElement("img");
         img.className = "preview";
         img.src = cell.image || "";
         div.appendChild(img);
 
-        // ---- 写真選択ボタン ----
+        // 写真アップロード
         const fileInput = document.createElement("input");
         fileInput.type = "file";
         fileInput.accept = "image/*";
         fileInput.capture = "environment";
         fileInput.style.display = "none";
 
-        fileInput.onchange = (e) => {
-            const file = e.target.files?.[0];
+        fileInput.onchange = (event) => {
+            const file = event.target.files?.[0];
             if (!file) {
                 alert("⚠ 写真が取得できませんでした。もう一度お試しください。");
                 return;
@@ -208,7 +235,7 @@ function render() {
         div.appendChild(btn);
         div.appendChild(fileInput);
 
-        // ---- 完了ボタン ----
+        // 完了ボタン
         const okBtn = document.createElement("button");
         okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
@@ -224,7 +251,7 @@ function render() {
 }
 
 /* =========================================
-   エクスポート
+   エクスポート・インポート
 ========================================= */
 function exportData() {
     const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
@@ -234,9 +261,6 @@ function exportData() {
     a.click();
 }
 
-/* =========================================
-   インポート
-========================================= */
 function importData(event) {
     const file = event.target.files?.[0];
     if (!file) return;
