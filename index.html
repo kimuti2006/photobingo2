@@ -2,13 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（スマホ最適化 完全版）</title>
+<title>写真ビンゴ 4x4（完全版）</title>
 
-<!-- スマホ全画面表示 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
-/* ---- スマホで見切れないレイアウトにする基本設定 ---- */
+/* 全体の見切れ防止 */
 * {
     box-sizing: border-box;
 }
@@ -17,38 +16,53 @@ html, body {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100dvh; /* iPhone Safari のアドレスバーを考慮 */
-    background: #ffffff;
+    min-height: 100dvh;
     font-family: sans-serif;
-    overflow-x: hidden; /* 横スクロール禁止 */
+    background: #fff;
+    overflow-x: hidden;
 }
 
 h1 {
-    margin: 8px 0;
+    margin: 6px 0;
     font-size: 20px;
+    text-align: center;
 }
 
-/* ---- ビンゴグリッド：画面に完全フィット ---- */
+/* --- ユーザー名欄 --- */
+#usernameArea {
+    width: 100%;
+    max-width: 500px;
+    margin: 4px auto 10px auto;
+    text-align: center;
+}
+
+#usernameInput {
+    width: 80%;
+    padding: 6px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+/* --- ビンゴグリッド --- */
 #bingo {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
     width: 100%;
-    max-width: 100%; /* 幅を絶対オーバーさせない */
+    max-width: 100%;
     margin: 0 auto;
 }
 
-/* ---- 各マス ---- */
+/* --- マス --- */
 .cell {
     border: 1px solid #ccc;
-    padding: 6px;
     border-radius: 6px;
     background: #fafafa;
+    padding: 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    font-size: 12px;
-    width: 100%; /* 列幅と完全一致 */
 }
 
 .cell.completed {
@@ -56,15 +70,15 @@ h1 {
     border: 2px solid #4caf50;
 }
 
-/* ---- キーワード入力 ---- */
+/* --- キーワード textarea（自動伸縮） --- */
 .keyword {
     width: 100%;
     margin-bottom: 4px;
     font-size: 12px;
     text-align: center;
 
-    resize: none;            /* 手動リサイズ禁止 */
-    overflow: hidden;        /* スクロールしない */
+    resize: none;
+    overflow: hidden;
     white-space: normal;
     word-break: break-word;
 
@@ -73,31 +87,30 @@ h1 {
     border-radius: 4px;
     border: 1px solid #ccc;
 
-    min-height: 24px;        /* 初期高さ */
+    min-height: 24px;
 }
 
-
-
-/* ---- プレビュー画像 ---- */
+/* --- 写真プレビュー --- */
 .preview {
-    width: 100%;         /* セル幅いっぱい */
-    max-width: 90px;     /* スマホで見やすい上限 */
+    width: 100%;
+    max-width: 90px;
     height: 90px;
     object-fit: cover;
-    border-radius: 4px;
     background: #eee;
+    border-radius: 4px;
 }
 
-/* ---- ボタン ---- */
+/* --- ボタン --- */
 .btn-small {
     margin-top: 4px;
     padding: 4px 6px;
     font-size: 11px;
 }
 
-/* ---- エクスポート／インポートボタン ---- */
+/* --- JSON エクスポート類 --- */
 .controls {
-    padding: 8px;
+    padding: 10px;
+    text-align: center;
 }
 </style>
 </head>
@@ -106,8 +119,16 @@ h1 {
 
 <h1>📸 写真ビンゴ（4×4）</h1>
 
+<!-- ユーザー名欄 -->
+<div id="usernameArea">
+    <label>ユーザー名：</label>
+    <input type="text" id="usernameInput" placeholder="名前を入力">
+</div>
+
+<!-- ビンゴ本体 -->
 <div id="bingo"></div>
 
+<!-- JSON操作 -->
 <div class="controls">
     <button onclick="exportData()">エクスポート（JSON）</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
@@ -115,16 +136,11 @@ h1 {
 </div>
 
 <script>
-
-    function autoResize(el) {
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
-}
-
-/* =========================================
-   初期データ
-========================================= */
+/* ===========================
+   基本データ
+=========================== */
 let bingoData = [];
+
 const defaultKeywords = [
     "きれいな景色",
     "おいしそうなもの",
@@ -144,9 +160,9 @@ const defaultKeywords = [
     ""
 ];
 
-/* =========================================
-   データ読み込み
-========================================= */
+/* ===========================
+   localStorage から読み込み
+=========================== */
 function loadData() {
     try {
         const saved = localStorage.getItem("photoBingo4x4");
@@ -160,20 +176,28 @@ function loadData() {
     }
 }
 
-/* =========================================
-   データ保存
-========================================= */
 function saveData() {
-    try {
-        localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
-    } catch {
-        alert("⚠ 保存容量がいっぱいです。写真を削除してください。");
+    localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
+}
+
+/* ===========================
+   ユーザー名読み込み／保存
+=========================== */
+function loadUserName() {
+    const savedName = localStorage.getItem("photoBingoUserName");
+    if (savedName) {
+        document.getElementById("usernameInput").value = savedName;
     }
 }
 
-/* =========================================
-   写真圧縮 → Base64
-========================================= */
+document.addEventListener("input", () => {
+    const name = document.getElementById("usernameInput").value;
+    localStorage.setItem("photoBingoUserName", name);
+});
+
+/* ===========================
+   画像圧縮
+=========================== */
 function compressAndConvert(file, callback) {
     const reader = new FileReader();
 
@@ -195,19 +219,23 @@ function compressAndConvert(file, callback) {
             callback(base64);
         };
 
-        img.onerror = () => alert("⚠ 画像の読み込みに失敗しました。");
-
         img.src = e.target.result;
     };
-
-    reader.onerror = () => alert("⚠ 画像の読み込みに失敗しました。");
 
     reader.readAsDataURL(file);
 }
 
-/* =========================================
+/* ===========================
+   textarea自動高さ調整
+=========================== */
+function autoResize(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+}
+
+/* ===========================
    描画
-========================================= */
+=========================== */
 function render() {
     const board = document.getElementById("bingo");
     board.innerHTML = "";
@@ -216,30 +244,26 @@ function render() {
         const div = document.createElement("div");
         div.className = "cell" + (cell.completed ? " completed" : "");
 
-        // キーワード
-       const input = document.createElement("textarea");
-input.className = "keyword";
-input.value = cell.keyword;
-input.oninput = (e) => {
-    bingoData[index].keyword = e.target.value;
-    autoResize(input);  // ← ここで自動調整
-    saveData();
-};
+        /* --- キーワード textarea --- */
+        const input = document.createElement("textarea");
+        input.className = "keyword";
+        input.value = cell.keyword;
+        input.oninput = (e) => {
+            bingoData[index].keyword = e.target.value;
+            autoResize(input);
+            saveData();
+        };
 
-// 初期表示時にも高さ調整
-setTimeout(() => autoResize(input), 0);
+        setTimeout(() => autoResize(input), 0);
+        div.appendChild(input);
 
-div.appendChild(input);
-
-
-
-        // 画像プレビュー
+        /* --- 写真プレビュー --- */
         const img = document.createElement("img");
         img.className = "preview";
         img.src = cell.image || "";
         div.appendChild(img);
 
-        // 写真アップロード
+        /* --- 写真アップロード --- */
         const fileInput = document.createElement("input");
         fileInput.type = "file";
         fileInput.accept = "image/*";
@@ -249,7 +273,7 @@ div.appendChild(input);
         fileInput.onchange = (event) => {
             const file = event.target.files?.[0];
             if (!file) {
-                alert("⚠ 写真が取得できませんでした。もう一度お試しください。");
+                alert("写真が取得できませんでした。");
                 return;
             }
 
@@ -267,7 +291,7 @@ div.appendChild(input);
         div.appendChild(btn);
         div.appendChild(fileInput);
 
-        // 完了ボタン
+        /* --- 完了ボタン --- */
         const okBtn = document.createElement("button");
         okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
@@ -282,9 +306,9 @@ div.appendChild(input);
     });
 }
 
-/* =========================================
-   エクスポート・インポート
-========================================= */
+/* ===========================
+   JSON エクスポート／インポート
+=========================== */
 function exportData() {
     const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
     const a = document.createElement("a");
@@ -307,16 +331,16 @@ function importData(event) {
     reader.readAsText(file);
 }
 
-/* =========================================
+/* ===========================
    初期化
-========================================= */
+=========================== */
 loadData();
 render();
+loadUserName();
 </script>
 
 </body>
 </html>
-
 
 
 
