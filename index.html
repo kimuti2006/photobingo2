@@ -2,15 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（完全版）</title>
+<title>写真ビンゴ 4x4（IndexedDB 完全版）</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
-/* 全体の見切れ防止 */
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
     margin: 0;
@@ -18,24 +15,23 @@ html, body {
     width: 100%;
     min-height: 100dvh;
     font-family: sans-serif;
-    background: #fff;
     overflow-x: hidden;
+    background: #fff;
 }
 
 h1 {
-    margin: 6px 0;
-    font-size: 20px;
+    margin: 8px 0;
     text-align: center;
+    font-size: 20px;
 }
 
-/* --- ユーザー名欄 --- */
+/* ユーザー名 */
 #usernameArea {
     width: 100%;
     max-width: 500px;
     margin: 4px auto 10px auto;
     text-align: center;
 }
-
 #usernameInput {
     width: 80%;
     padding: 6px;
@@ -44,7 +40,7 @@ h1 {
     border: 1px solid #ccc;
 }
 
-/* --- ビンゴグリッド --- */
+/* ビンゴ */
 #bingo {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -54,60 +50,57 @@ h1 {
     margin: 0 auto;
 }
 
-/* --- マス --- */
+/* マス */
 .cell {
     border: 1px solid #ccc;
     border-radius: 6px;
-    background: #fafafa;
     padding: 6px;
+    background: #fafafa;
     display: flex;
     flex-direction: column;
     align-items: center;
 }
-
 .cell.completed {
     background: #d1ffd1;
     border: 2px solid #4caf50;
 }
 
-/* --- キーワード textarea（自動伸縮） --- */
+/* キーワード（textarea） */
 .keyword {
     width: 100%;
-    margin-bottom: 4px;
     font-size: 12px;
-    text-align: center;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 
     resize: none;
     overflow: hidden;
+
     white-space: normal;
     word-break: break-word;
-
     line-height: 1.2;
-    padding: 4px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
 
     min-height: 24px;
+    margin-bottom: 4px;
 }
 
-/* --- 写真プレビュー --- */
+/* プレビュー画像 */
 .preview {
     width: 100%;
     max-width: 90px;
     height: 90px;
     object-fit: cover;
-    background: #eee;
     border-radius: 4px;
+    background: #eee;
 }
 
-/* --- ボタン --- */
+/* ボタン */
 .btn-small {
     margin-top: 4px;
     padding: 4px 6px;
     font-size: 11px;
 }
 
-/* --- JSON エクスポート類 --- */
 .controls {
     padding: 10px;
     text-align: center;
@@ -125,20 +118,22 @@ h1 {
     <input type="text" id="usernameInput" placeholder="名前を入力">
 </div>
 
-<!-- ビンゴ本体 -->
+<!-- ビンゴ -->
 <div id="bingo"></div>
 
-<!-- JSON操作 -->
+<!-- JSON ボタン -->
 <div class="controls">
     <button onclick="exportData()">エクスポート（JSON）</button>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
     <button onclick="document.getElementById('importFile').click()">インポート</button>
 </div>
 
+
+
 <script>
-/* ===========================
+/* ================================
    基本データ
-=========================== */
+================================ */
 let bingoData = [];
 
 const defaultKeywords = [
@@ -160,19 +155,54 @@ const defaultKeywords = [
     ""
 ];
 
-/* ===========================
-   localStorage から読み込み
-=========================== */
+
+/* ================================
+   IndexedDB （画像保存用）
+================================ */
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open("photoBingoDB", 1);
+
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+
+        req.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains("images")) {
+                db.createObjectStore("images");
+            }
+        };
+    });
+}
+
+function saveImageToDB(id, data) {
+    return openDB().then(db => {
+        const tx = db.transaction("images", "readwrite");
+        tx.objectStore("images").put(data, id);
+    });
+}
+
+function getImageFromDB(id) {
+    return openDB().then(db => {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("images", "readonly");
+            const req = tx.objectStore("images").get(id);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    });
+}
+
+
+/* ================================
+   localStorage 読み書き
+================================ */
 function loadData() {
-    try {
-        const saved = localStorage.getItem("photoBingo4x4");
-        if (saved) {
-            bingoData = JSON.parse(saved);
-        } else {
-            bingoData = defaultKeywords.map(k => ({ keyword: k, image: "", completed: false }));
-        }
-    } catch {
-        bingoData = defaultKeywords.map(k => ({ keyword: k, image: "", completed: false }));
+    const saved = localStorage.getItem("photoBingo4x4");
+    if (saved) {
+        bingoData = JSON.parse(saved);
+    } else {
+        bingoData = defaultKeywords.map(k => ({ keyword: k, image: null, completed: false }));
     }
 }
 
@@ -180,62 +210,66 @@ function saveData() {
     localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
 }
 
-/* ===========================
-   ユーザー名読み込み／保存
-=========================== */
+
+/* ================================
+   ユーザー名の保存
+================================ */
 function loadUserName() {
-    const savedName = localStorage.getItem("photoBingoUserName");
-    if (savedName) {
-        document.getElementById("usernameInput").value = savedName;
-    }
+    const name = localStorage.getItem("photoBingoUserName");
+    if (name) document.getElementById("usernameInput").value = name;
 }
 
 document.addEventListener("input", () => {
-    const name = document.getElementById("usernameInput").value;
-    localStorage.setItem("photoBingoUserName", name);
+    localStorage.setItem("photoBingoUserName",
+        document.getElementById("usernameInput").value
+    );
 });
 
-/* ===========================
-   画像圧縮
-=========================== */
-function compressAndConvert(file, callback) {
-    const reader = new FileReader();
 
-    reader.onload = (e) => {
-        const img = new Image();
-
-        img.onload = () => {
-            const maxWidth = 600;
-            const scale = maxWidth / img.width;
-
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.min(img.width, maxWidth);
-            canvas.height = img.height * scale;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            const base64 = canvas.toDataURL("image/jpeg", 0.8);
-            callback(base64);
-        };
-
-        img.src = e.target.result;
-    };
-
-    reader.readAsDataURL(file);
-}
-
-/* ===========================
-   textarea自動高さ調整
-=========================== */
+/* ================================
+   自動高さ調整
+================================ */
 function autoResize(el) {
     el.style.height = "auto";
     el.style.height = el.scrollHeight + "px";
 }
 
-/* ===========================
-   描画
-=========================== */
+
+/* ================================
+   圧縮 → IndexedDB 保存
+================================ */
+function compressAndSaveImage(file, index) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                // 圧縮
+                const maxWidth = 600;
+                const scale = maxWidth / img.width;
+
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.min(img.width, maxWidth);
+                canvas.height = img.height * scale;
+
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                const base64 = canvas.toDataURL("image/jpeg", 0.8);
+
+                // IndexedDB に保存
+                saveImageToDB(index, base64).then(() => resolve(base64));
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+
+/* ================================
+   描画処理
+================================ */
 function render() {
     const board = document.getElementById("bingo");
     board.innerHTML = "";
@@ -244,10 +278,11 @@ function render() {
         const div = document.createElement("div");
         div.className = "cell" + (cell.completed ? " completed" : "");
 
-        /* --- キーワード textarea --- */
+        /* --- textarea --- */
         const input = document.createElement("textarea");
         input.className = "keyword";
         input.value = cell.keyword;
+
         input.oninput = (e) => {
             bingoData[index].keyword = e.target.value;
             autoResize(input);
@@ -257,11 +292,19 @@ function render() {
         setTimeout(() => autoResize(input), 0);
         div.appendChild(input);
 
-        /* --- 写真プレビュー --- */
+
+        /* --- 画像 --- */
         const img = document.createElement("img");
         img.className = "preview";
-        img.src = cell.image || "";
+
+        if (cell.image !== null) {
+            getImageFromDB(index).then(data => {
+                img.src = data || "";
+            });
+        }
+
         div.appendChild(img);
+
 
         /* --- 写真アップロード --- */
         const fileInput = document.createElement("input");
@@ -272,29 +315,28 @@ function render() {
 
         fileInput.onchange = (event) => {
             const file = event.target.files?.[0];
-            if (!file) {
-                alert("写真が取得できませんでした。");
-                return;
-            }
+            if (!file) return;
 
-            compressAndConvert(file, (base64) => {
-                bingoData[index].image = base64;
+            compressAndSaveImage(file, index).then(base64 => {
+                bingoData[index].image = true; // 画像ありフラグ
                 saveData();
                 render();
             });
         };
 
         const btn = document.createElement("button");
-        btn.textContent = "写真を撮る/選ぶ";
         btn.className = "btn-small";
+        btn.textContent = "写真を撮る/選ぶ";
         btn.onclick = () => fileInput.click();
+
         div.appendChild(btn);
         div.appendChild(fileInput);
 
+
         /* --- 完了ボタン --- */
         const okBtn = document.createElement("button");
-        okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
+        okBtn.textContent = "確認してOK";
         okBtn.onclick = () => {
             bingoData[index].completed = true;
             saveData();
@@ -302,28 +344,46 @@ function render() {
         };
         div.appendChild(okBtn);
 
+
         board.appendChild(div);
     });
 }
 
-/* ===========================
-   JSON エクスポート／インポート
-=========================== */
+
+/* ================================
+   エクスポート
+================================ */
 function exportData() {
-    const userName = document.getElementById("usernameInput").value;
+    const name = document.getElementById("usernameInput").value;
 
     const exportObj = {
-        userName: userName,
-        bingoData: bingoData
+        userName: name,
+        bingoData: []
     };
 
-    const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "bingo4x4_export.json";
-    a.click();
+    Promise.all(
+        bingoData.map((cell, index) =>
+            getImageFromDB(index).then(imgData => ({
+                keyword: cell.keyword,
+                image: imgData || null,
+                completed: cell.completed
+            }))
+        )
+    ).then(results => {
+        exportObj.bingoData = results;
+
+        const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${name || "photoBingo_export"}_bingo4x4.json`; // ユーザー名をファイル名として設定
+        a.click();
+    });
 }
 
+
+/* ================================
+   インポート
+================================ */
 function importData(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -332,30 +392,34 @@ function importData(event) {
     reader.onload = () => {
         const obj = JSON.parse(reader.result);
 
-        // 新しい形式（userName + bingoData）
-        if (obj.userName !== undefined && obj.bingoData !== undefined) {
+        if (obj.userName) {
             document.getElementById("usernameInput").value = obj.userName;
             localStorage.setItem("photoBingoUserName", obj.userName);
+        }
 
-            bingoData = obj.bingoData;
-            saveData();
-            render();
-            alert("ユーザー名＋ビンゴデータをインポートしました！");
-        }
-        // 旧形式（bingoData のみ）
-        else {
-            bingoData = obj;
-            saveData();
-            render();
-            alert("ビンゴデータのみインポートしました。（旧形式）");
-        }
+        bingoData = obj.bingoData.map((item, index) => {
+            // IndexedDB に保存
+            if (item.image) saveImageToDB(index, item.image);
+
+            return {
+                keyword: item.keyword,
+                image: item.image ? true : null,
+                completed: item.completed
+            };
+        });
+
+        saveData();
+        render();
+        alert("インポート完了！");
     };
+
     reader.readAsText(file);
 }
 
-/* ===========================
+
+/* ================================
    初期化
-=========================== */
+================================ */
 loadData();
 render();
 loadUserName();
@@ -363,6 +427,5 @@ loadUserName();
 
 </body>
 </html>
-
 
 
