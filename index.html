@@ -2,79 +2,89 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（スマホ全画面 最適化版）</title>
+<title>写真ビンゴ 4x4（スマホ最適化 完全版）</title>
 
-<!-- スマホ全画面表示に必須 -->
+<!-- スマホ全画面表示 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
-    /* スマホ全画面のために余白を完全にカット */
-    html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        min-height: 100dvh; /* iPhone Safari 対応の新しい単位 */
-        background: #ffffff;
-        font-family: sans-serif;
-        overflow-x: hidden;
-    }
+/* ---- スマホで見切れないレイアウトにする基本設定 ---- */
+* {
+    box-sizing: border-box;
+}
 
-    h1 {
-        margin: 8px 0;
-        font-size: 20px;
-    }
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100dvh; /* iPhone Safari のアドレスバーを考慮 */
+    background: #ffffff;
+    font-family: sans-serif;
+    overflow-x: hidden; /* 横スクロール禁止 */
+}
 
-    #bingo {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        width: 100%;
-        max-width: 500px;
-        margin: 0 auto;
-        padding: 0 8px;
-    }
+h1 {
+    margin: 8px 0;
+    font-size: 20px;
+}
 
-    .cell {
-        border: 1px solid #ccc;
-        padding: 6px;
-        border-radius: 6px;
-        background: #fafafa;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-size: 12px;
-    }
+/* ---- ビンゴグリッド：画面に完全フィット ---- */
+#bingo {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: 100%;
+    max-width: 100%; /* 幅を絶対オーバーさせない */
+    margin: 0 auto;
+}
 
-    .cell.completed {
-        background: #d1ffd1;
-        border: 2px solid #4caf50;
-    }
+/* ---- 各マス ---- */
+.cell {
+    border: 1px solid #ccc;
+    padding: 6px;
+    border-radius: 6px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 12px;
+    width: 100%; /* 列幅と完全一致 */
+}
 
-    .keyword {
-        width: 90%;
-        margin-bottom: 4px;
-        text-align: center;
-        font-size: 12px;
-    }
+.cell.completed {
+    background: #d1ffd1;
+    border: 2px solid #4caf50;
+}
 
-    .preview {
-        width: 90px;
-        height: 90px;
-        object-fit: cover;
-        border-radius: 4px;
-        background: #eee;
-    }
+/* ---- キーワード入力 ---- */
+.keyword {
+    width: 100%;
+    margin-bottom: 4px;
+    text-align: center;
+    font-size: 12px;
+}
 
-    .btn-small {
-        margin-top: 4px;
-        padding: 4px 6px;
-        font-size: 11px;
-    }
+/* ---- プレビュー画像 ---- */
+.preview {
+    width: 100%;         /* セル幅いっぱい */
+    max-width: 90px;     /* スマホで見やすい上限 */
+    height: 90px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #eee;
+}
 
-    /* ボタンエリア */
-    .controls {
-        padding: 8px;
-    }
+/* ---- ボタン ---- */
+.btn-small {
+    margin-top: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+}
+
+/* ---- エクスポート／インポートボタン ---- */
+.controls {
+    padding: 8px;
+}
 </style>
 </head>
 
@@ -137,7 +147,7 @@ function saveData() {
     try {
         localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
     } catch {
-        alert("⚠ 写真の保存容量がいっぱいです。いくつか削除してください。");
+        alert("⚠ 保存容量がいっぱいです。写真を削除してください。");
     }
 }
 
@@ -165,22 +175,18 @@ function compressAndConvert(file, callback) {
             callback(base64);
         };
 
-        img.onerror = () => {
-            alert("⚠ 画像の読み込みに失敗しました。別の写真でお試しください。");
-        };
+        img.onerror = () => alert("⚠ 画像の読み込みに失敗しました。");
 
         img.src = e.target.result;
     };
 
-    reader.onerror = () => {
-        alert("⚠ 画像の読み込みに失敗しました。");
-    };
+    reader.onerror = () => alert("⚠ 画像の読み込みに失敗しました。");
 
     reader.readAsDataURL(file);
 }
 
 /* =========================================
-   画面描画
+   描画
 ========================================= */
 function render() {
     const board = document.getElementById("bingo");
@@ -284,3 +290,4 @@ render();
 
 </body>
 </html>
+
