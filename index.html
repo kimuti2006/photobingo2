@@ -63,15 +63,19 @@ h1 {
     font-size: 12px;
     text-align: center;
 
-    resize: none;       /* 大きさ変更禁止 */
-    overflow: hidden;   /* スクロールバー非表示 */
+    resize: none;            /* 手動リサイズ禁止 */
+    overflow: hidden;        /* スクロールしない */
     white-space: normal;
     word-break: break-word;
+
     line-height: 1.2;
     padding: 4px;
     border-radius: 4px;
     border: 1px solid #ccc;
+
+    min-height: 24px;        /* 初期高さ */
 }
+
 
 
 /* ---- プレビュー画像 ---- */
@@ -111,6 +115,12 @@ h1 {
 </div>
 
 <script>
+
+    function autoResize(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+}
+
 /* =========================================
    初期データ
 ========================================= */
@@ -210,12 +220,17 @@ function render() {
        const input = document.createElement("textarea");
 input.className = "keyword";
 input.value = cell.keyword;
-input.rows = 2;  // ← スマホでも読みやすい
 input.oninput = (e) => {
     bingoData[index].keyword = e.target.value;
+    autoResize(input);  // ← ここで自動調整
     saveData();
 };
+
+// 初期表示時にも高さ調整
+setTimeout(() => autoResize(input), 0);
+
 div.appendChild(input);
+
 
 
         // 画像プレビュー
@@ -301,6 +316,7 @@ render();
 
 </body>
 </html>
+
 
 
 
