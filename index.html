@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>写真ビンゴ 4x4（GitHub Pages 最適化版）</title>
+<title>写真ビンゴ 4x4（GitHub Pages 安定版）</title>
 <style>
     body {
         font-family: sans-serif;
@@ -50,6 +50,7 @@
     }
 </style>
 </head>
+
 <body>
 
 <h1>📸 写真ビンゴ（4×4）</h1>
@@ -63,9 +64,10 @@
 <button onclick="document.getElementById('importFile').click()">インポート</button>
 
 <script>
+/* =========================================
+   初期データ
+========================================= */
 let bingoData = [];
-
-// 既定キーワード
 const defaultKeywords = [
     "きれいな景色",
     "おいしそうなもの",
@@ -85,60 +87,74 @@ const defaultKeywords = [
     ""
 ];
 
-// ---------------------------
-// 画像圧縮 → Base64 化
-// ---------------------------
-function compressImage(file, maxWidth = 600, callback) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-            const scale = maxWidth / img.width;
-            const canvas = document.createElement("canvas");
-            canvas.width = maxWidth;
-            canvas.height = img.height * scale;
-            
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            const base64 = canvas.toDataURL("image/jpeg", 0.8); // 圧縮率 80%
-            callback(base64);
-        };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-}
-
-// ---------------------------
-// localStorage 読み込み
-// ---------------------------
+/* =========================================
+   データ読み込み
+========================================= */
 function loadData() {
-    const saved = localStorage.getItem("photoBingo4x4");
-    if (saved) {
-        bingoData = JSON.parse(saved);
-    } else {
-        bingoData = defaultKeywords.map(k => ({
-            keyword: k,
-            image: "",
-            completed: false
-        }));
+    try {
+        const saved = localStorage.getItem("photoBingo4x4");
+        if (saved) {
+            bingoData = JSON.parse(saved);
+        } else {
+            bingoData = defaultKeywords.map(k => ({ keyword: k, image: "", completed: false }));
+        }
+    } catch {
+        bingoData = defaultKeywords.map(k => ({ keyword: k, image: "", completed: false }));
     }
 }
 
-// ---------------------------
-// localStorage 保存
-// ---------------------------
+/* =========================================
+   データ保存
+========================================= */
 function saveData() {
     try {
         localStorage.setItem("photoBingo4x4", JSON.stringify(bingoData));
-    } catch (e) {
-        alert("保存容量がいっぱいです。写真を小さくするか、削除してください。");
+    } catch {
+        alert("⚠ 写真が多すぎて保存できません。いくつか削除してください。");
     }
 }
 
-// ---------------------------
-// 描画
-// ---------------------------
+/* =========================================
+   写真を圧縮して Base64 に変換
+========================================= */
+function compressAndConvert(file, callback) {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        const img = new Image();
+
+        img.onload = () => {
+            const maxWidth = 600;
+            const scale = maxWidth / img.width;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.min(img.width, maxWidth);
+            canvas.height = img.height * scale;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const base64 = canvas.toDataURL("image/jpeg", 0.8);
+            callback(base64);
+        };
+
+        img.onerror = () => {
+            alert("⚠ 画像の読み込みに失敗しました。別の写真を選んでください。");
+        };
+
+        img.src = e.target.result;
+    };
+
+    reader.onerror = () => {
+        alert("⚠ 画像変換に失敗しました。");
+    };
+
+    reader.readAsDataURL(file);
+}
+
+/* =========================================
+   画面描画
+========================================= */
 function render() {
     const board = document.getElementById("bingo");
     board.innerHTML = "";
@@ -147,7 +163,7 @@ function render() {
         const div = document.createElement("div");
         div.className = "cell" + (cell.completed ? " completed" : "");
 
-        // キーワード
+        // ---- キーワード入力 ----
         const input = document.createElement("input");
         input.type = "text";
         input.className = "keyword";
@@ -158,24 +174,27 @@ function render() {
         };
         div.appendChild(input);
 
-        // プレビュー
+        // ---- 画像プレビュー ----
         const img = document.createElement("img");
         img.className = "preview";
         img.src = cell.image || "";
         div.appendChild(img);
 
-        // 写真アップロード
+        // ---- 写真選択ボタン ----
         const fileInput = document.createElement("input");
         fileInput.type = "file";
         fileInput.accept = "image/*";
         fileInput.capture = "environment";
         fileInput.style.display = "none";
 
-        fileInput.onchange = (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
+        fileInput.onchange = (e) => {
+            const file = e.target.files?.[0];
+            if (!file) {
+                alert("⚠ 写真が取得できませんでした。もう一度お試しください。");
+                return;
+            }
 
-            compressImage(file, 600, (base64) => {
+            compressAndConvert(file, (base64) => {
                 bingoData[index].image = base64;
                 saveData();
                 render();
@@ -189,7 +208,7 @@ function render() {
         div.appendChild(btn);
         div.appendChild(fileInput);
 
-        // OK
+        // ---- 完了ボタン ----
         const okBtn = document.createElement("button");
         okBtn.textContent = "確認してOK";
         okBtn.className = "btn-small";
@@ -197,3 +216,47 @@ function render() {
             bingoData[index].completed = true;
             saveData();
             render();
+        };
+        div.appendChild(okBtn);
+
+        board.appendChild(div);
+    });
+}
+
+/* =========================================
+   エクスポート
+========================================= */
+function exportData() {
+    const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bingo4x4_export.json";
+    a.click();
+}
+
+/* =========================================
+   インポート
+========================================= */
+function importData(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        bingoData = JSON.parse(reader.result);
+        saveData();
+        render();
+        alert("インポート完了！");
+    };
+    reader.readAsText(file);
+}
+
+/* =========================================
+   初期化
+========================================= */
+loadData();
+render();
+</script>
+
+</body>
+</html>
