@@ -310,7 +310,14 @@ function render() {
    JSON エクスポート／インポート
 =========================== */
 function exportData() {
-    const blob = new Blob([JSON.stringify(bingoData)], { type: "application/json" });
+    const userName = document.getElementById("usernameInput").value;
+
+    const exportObj = {
+        userName: userName,
+        bingoData: bingoData
+    };
+
+    const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "bingo4x4_export.json";
@@ -323,10 +330,25 @@ function importData(event) {
 
     const reader = new FileReader();
     reader.onload = () => {
-        bingoData = JSON.parse(reader.result);
-        saveData();
-        render();
-        alert("インポート完了！");
+        const obj = JSON.parse(reader.result);
+
+        // 新しい形式（userName + bingoData）
+        if (obj.userName !== undefined && obj.bingoData !== undefined) {
+            document.getElementById("usernameInput").value = obj.userName;
+            localStorage.setItem("photoBingoUserName", obj.userName);
+
+            bingoData = obj.bingoData;
+            saveData();
+            render();
+            alert("ユーザー名＋ビンゴデータをインポートしました！");
+        }
+        // 旧形式（bingoData のみ）
+        else {
+            bingoData = obj;
+            saveData();
+            render();
+            alert("ビンゴデータのみインポートしました。（旧形式）");
+        }
     };
     reader.readAsText(file);
 }
